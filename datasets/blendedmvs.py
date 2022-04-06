@@ -33,11 +33,11 @@ class BlendedMVSDataset(Dataset):
         self.metas = []
         self.ref_views_per_scan = defaultdict(list)
         if self.split == 'train':
-            list_txt = os.path.join(self.root_dir, '../training_list.txt')
+            list_txt = os.path.join(self.root_dir, '../BlendedMVS_training.txt')
         elif self.split == 'val':
             list_txt = os.path.join(self.root_dir, '../validation_list.txt')
         else:
-            list_txt = os.path.join(self.root_dir, '../all_list.txt')
+            list_txt = os.path.join(self.root_dir, '../BlendedMVS.txt')
 
         with open(list_txt) as f:
             self.scans = [line.rstrip() for line in f.readlines()]

@@ -78,7 +78,7 @@ class FeatureNet(nn.Module):
     """
     Using DCN in FPN
     """
-    def __init__(self):
+    def __init__(self,norm_act=InPlaceABN):
         super(FeatureNet, self).__init__()
         base_filter = 8
 
