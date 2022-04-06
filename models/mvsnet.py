@@ -4,57 +4,101 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .modules import *
 
+# class FeatureNet(nn.Module):
+#     """
+#     output 3 levels of features using a FPN structure
+#     """
+#     def __init__(self, norm_act=InPlaceABN):
+#         super(FeatureNet, self).__init__()
+#
+#         self.conv0 = nn.Sequential(
+#                         ConvBnReLU(3, 8, 3, 1, 1, norm_act=norm_act),
+#                         ConvBnReLU(8, 8, 3, 1, 1, norm_act=norm_act))
+#
+#         self.conv1 = nn.Sequential(
+#                         ConvBnReLU(8, 16, 5, 2, 2, norm_act=norm_act),
+#                         ConvBnReLU(16, 16, 3, 1, 1, norm_act=norm_act),
+#                         ConvBnReLU(16, 16, 3, 1, 1, norm_act=norm_act))
+#
+#         self.conv2 = nn.Sequential(
+#                         ConvBnReLU(16, 32, 5, 2, 2, norm_act=norm_act),
+#                         ConvBnReLU(32, 32, 3, 1, 1, norm_act=norm_act),
+#                         ConvBnReLU(32, 32, 3, 1, 1, norm_act=norm_act))
+#
+#         self.toplayer = nn.Conv2d(32, 32, 1)
+#         self.lat1 = nn.Conv2d(16, 32, 1)
+#         self.lat0 = nn.Conv2d(8, 32, 1)
+#
+#         # to reduce channel size of the outputs from FPN
+#         self.smooth1 = nn.Conv2d(32, 16, 3, padding=1)
+#         self.smooth0 = nn.Conv2d(32, 8, 3, padding=1)
+#
+#     def _upsample_add(self, x, y):
+#         return F.interpolate(x, scale_factor=2,
+#                              mode="bilinear", align_corners=True) + y
+#
+#     def forward(self, x):
+#         # x: (B, 3, H, W)
+#         conv0 = self.conv0(x) # (B, 8, H, W)
+#         conv1 = self.conv1(conv0) # (B, 16, H//2, W//2)
+#         conv2 = self.conv2(conv1) # (B, 32, H//4, W//4)
+#         feat2 = self.toplayer(conv2) # (B, 32, H//4, W//4)
+#         feat1 = self._upsample_add(feat2, self.lat1(conv1)) # (B, 32, H//2, W//2)
+#         feat0 = self._upsample_add(feat1, self.lat0(conv0)) # (B, 32, H, W)
+#
+#         # reduce output channels
+#         feat1 = self.smooth1(feat1) # (B, 16, H//2, W//2)
+#         feat0 = self.smooth0(feat0) # (B, 8, H, W)
+#
+#         feats = {"level_0": feat0,
+#                  "level_1": feat1,
+#                  "level_2": feat2}
+#
+#         return feats
+
+
+class DCNModule(nn.Module):
+    def __init__(self):
+        super(DCNModule, self).__init__()
+        base_filter = 8
+        self.deformconv0 = deformconvgnrelu(base_filter*2,base_filter*2,kernel_size=3,stride =1,dilation=1)
+        self.deformconv1 = deformconvgnrelu(base_filter*2,base_filter,kernel_size=3,stride =1,dilation=1)
+        self.deformconv2 = deformconvgnrelu(base_filter*2,base_filter,kernel_size=3,stride =1,dilation=1)
+
+    def forward(self,x0,x1,x2):
+        m0 = self.deformconv0(x0)
+        x1_ = self.deformconv1(x1)
+        x2_ = self.deformconv2(x2)
+        m1 = nn.functional.interpolate(x1_,scale_factor=2, mode="bilinear", align_corners=True)
+        m2 = nn.functional.interpolate(x2_,scale_factor=4, mode="bilinear", align_corners=True)
+        return torch.cat([m0,m1,m2],1)
+
+
 class FeatureNet(nn.Module):
     """
-    output 3 levels of features using a FPN structure
+    Using DCN in FPN
     """
-    def __init__(self, norm_act=InPlaceABN):
+    def __init__(self):
         super(FeatureNet, self).__init__()
+        base_filter = 8
 
-        self.conv0 = nn.Sequential(
-                        ConvBnReLU(3, 8, 3, 1, 1, norm_act=norm_act),
-                        ConvBnReLU(8, 8, 3, 1, 1, norm_act=norm_act))
+        self.init_conv = nn.Sequential(
+            ConvgnReLU(3,base_filter,kernel_size=3,stride=1,dilation=1),
+            ConvgnReLU(base_filter,base_filter*2,kernel_size=3,stride=1,dilation=1)
+        )
+        self.con0 = ConvgnReLU(base_filter*2,base_filter*2,kernel_size=3,stride=1,dilation=1)
+        self.con1 = ConvgnReLU(base_filter*2,base_filter*2,kernel_size=3,stride=2,dilation=1)
+        self.conv2 = ConvgnReLU(base_filter*2,base_filter*2,kernel_size=3,stride=2,dilation=1)
+        self.adaptive = DCNModule()
 
-        self.conv1 = nn.Sequential(
-                        ConvBnReLU(8, 16, 5, 2, 2, norm_act=norm_act),
-                        ConvBnReLU(16, 16, 3, 1, 1, norm_act=norm_act),
-                        ConvBnReLU(16, 16, 3, 1, 1, norm_act=norm_act))
+    def forward(self,x):
 
-        self.conv2 = nn.Sequential( 
-                        ConvBnReLU(16, 32, 5, 2, 2, norm_act=norm_act),
-                        ConvBnReLU(32, 32, 3, 1, 1, norm_act=norm_act),
-                        ConvBnReLU(32, 32, 3, 1, 1, norm_act=norm_act))
+        x = self.init_conv(x)
+        x0 = self.con0(x)
+        x1 = self.con1(x0)
+        x2 = self.conv2(x1)
 
-        self.toplayer = nn.Conv2d(32, 32, 1)
-        self.lat1 = nn.Conv2d(16, 32, 1)
-        self.lat0 = nn.Conv2d(8, 32, 1)
-
-        # to reduce channel size of the outputs from FPN
-        self.smooth1 = nn.Conv2d(32, 16, 3, padding=1)
-        self.smooth0 = nn.Conv2d(32, 8, 3, padding=1)
-
-    def _upsample_add(self, x, y):
-        return F.interpolate(x, scale_factor=2, 
-                             mode="bilinear", align_corners=True) + y
-
-    def forward(self, x):
-        # x: (B, 3, H, W)
-        conv0 = self.conv0(x) # (B, 8, H, W)
-        conv1 = self.conv1(conv0) # (B, 16, H//2, W//2)
-        conv2 = self.conv2(conv1) # (B, 32, H//4, W//4)
-        feat2 = self.toplayer(conv2) # (B, 32, H//4, W//4)
-        feat1 = self._upsample_add(feat2, self.lat1(conv1)) # (B, 32, H//2, W//2)
-        feat0 = self._upsample_add(feat1, self.lat0(conv0)) # (B, 32, H, W)
-
-        # reduce output channels
-        feat1 = self.smooth1(feat1) # (B, 16, H//2, W//2)
-        feat0 = self.smooth0(feat0) # (B, 8, H, W)
-
-        feats = {"level_0": feat0,
-                 "level_1": feat1,
-                 "level_2": feat2}
-
-        return feats
+        return self.adaptive(x0,x1,x2)
 
 
 class CostRegNet(nn.Module):
