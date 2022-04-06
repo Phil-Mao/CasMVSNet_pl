@@ -23,12 +23,13 @@ from metrics import *
 # pytorch-lightning
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.logging import TestTubeLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 
 class MVSSystem(LightningModule):
     def __init__(self, hparams):
         super(MVSSystem, self).__init__()
-        self.hparams = hparams
+        # self.hparams = hparams
+        self.save_hyperparameters(hparams)
         # to unnormalize image for visualization
         self.unpreprocess = T.Normalize(mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225], 
                                         std=[1/0.229, 1/0.224, 1/0.225])
@@ -176,27 +177,27 @@ class MVSSystem(LightningModule):
 if __name__ == '__main__':
     hparams = get_opts()
     system = MVSSystem(hparams)
-    checkpoint_callback = ModelCheckpoint(filepath=os.path.join(f'ckpts/{hparams.exp_name}',
+    checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(f'ckpts/{hparams.exp_name}',
                                                                 '{epoch:02d}'),
                                           monitor='val/acc_2mm',
                                           mode='max',
                                           save_top_k=5,)
 
-    logger = TestTubeLogger(
+    logger = TensorBoardLogger(
         save_dir="logs",
         name=hparams.exp_name,
-        debug=False,
-        create_git_tag=False
+        # debug=False,
+        # create_git_tag=False
     )
 
     trainer = Trainer(max_epochs=hparams.num_epochs,
                       checkpoint_callback=checkpoint_callback,
                       logger=logger,
-                      early_stop_callback=None,
-                      weights_summary=None,
+                    #   early_stop_callback=None,
+                    #   weights_summary=None,
                       progress_bar_refresh_rate=1,
                       gpus=hparams.num_gpus,
-                      distributed_backend='ddp' if hparams.num_gpus>1 else None,
+                      accelerator='dp' if hparams.num_gpus>1 else None,
                       num_sanity_val_steps=0 if hparams.num_gpus>1 else 5,
                       benchmark=True,
                       precision=16 if hparams.use_amp else 32,
