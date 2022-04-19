@@ -72,4 +72,7 @@ def get_opts():
     parser.add_argument('--exp_name', type=str, default='exp',
                         help='experiment name')
 
+    parser.add_argument('--deform_conv', nargs='+', type=int, default=[0,0,1,0,0,1,0,1],
+                        help='define which FPN layer use DCNv2')
+
     return parser.parse_args()

@@ -39,6 +39,7 @@ class MVSSystem(LightningModule):
         self.model = CascadeMVSNet(n_depths=self.hparams.n_depths,
                                    interval_ratios=self.hparams.interval_ratios,
                                    num_groups=self.hparams.num_groups,
+                                   deformConv=self.hparams.deform_conv,
                                    norm_act=InPlaceABN)
 
         # if num gpu is 1, print model structure and number of params
@@ -177,8 +178,8 @@ class MVSSystem(LightningModule):
 if __name__ == '__main__':
     hparams = get_opts()
     system = MVSSystem(hparams)
-    checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(f'ckpts/{hparams.exp_name}',
-                                                                '{epoch:02d}'),
+    checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(f'ckpts/{hparams.exp_name}'),
+                                          filename='{epoch:02d}',
                                           monitor='val/acc_2mm',
                                           mode='max',
                                           save_top_k=5,)
@@ -191,7 +192,7 @@ if __name__ == '__main__':
     )
 
     trainer = Trainer(max_epochs=hparams.num_epochs,
-                      checkpoint_callback=checkpoint_callback,
+                      callbacks=[checkpoint_callback],
                       logger=logger,
                     #   early_stop_callback=None,
                     #   weights_summary=None,
