@@ -4,16 +4,16 @@ def get_opts():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--root_dir', type=str,
-                        default='/home/ubuntu/data/mvs_training/dtu/',
+                        default='/media/vge/DataB/BlendedMVS_dataset_low_res/',
                         help='root directory of dtu dataset')
-    parser.add_argument('--dataset_name', type=str, default='dtu',
+    parser.add_argument('--dataset_name', type=str, default='blendedmvs',
                         choices=['dtu', 'blendedmvs'],
                         help='which dataset to train/val')
     parser.add_argument('--n_views', type=int, default=3,
                         help='number of views (including ref) to be used in training')
     parser.add_argument('--levels', type=int, default=3, choices=[3],
                         help='number of FPN levels (fixed to be 3!)')
-    parser.add_argument('--depth_interval', type=float, default=2.65,
+    parser.add_argument('--depth_interval', type=float, default=192.0,
                         help='depth interval for the finest level, unit in mm')
     parser.add_argument('--n_depths', nargs='+', type=int, default=[8,32,48],
                         help='number of depths in each level')
@@ -25,7 +25,7 @@ def get_opts():
                         choices=['sl1'],
                         help='loss to use')
 
-    parser.add_argument('--batch_size', type=int, default=1,
+    parser.add_argument('--batch_size', type=int, default=2,
                         help='batch size')
     parser.add_argument('--num_epochs', type=int, default=16,
                         help='number of training epochs')
@@ -37,7 +37,7 @@ def get_opts():
     parser.add_argument('--prefixes_to_ignore', nargs='+', type=str, default=['loss'],
                         help='the prefixes to ignore in the checkpoint state dict')
 
-    parser.add_argument('--optimizer', type=str, default='sgd',
+    parser.add_argument('--optimizer', type=str, default='adam',
                         help='optimizer type',
                         choices=['sgd', 'adam', 'radam', 'ranger'])
     parser.add_argument('--lr', type=float, default=1e-3,
@@ -46,7 +46,7 @@ def get_opts():
                         help='learning rate momentum')
     parser.add_argument('--weight_decay', type=float, default=1e-5,
                         help='weight decay')
-    parser.add_argument('--lr_scheduler', type=str, default='steplr',
+    parser.add_argument('--lr_scheduler', type=str, default='cosine',
                         help='scheduler type',
                         choices=['steplr', 'cosine', 'poly'])
     #### params for warmup, only applied when optimizer == 'sgd' or 'adam'

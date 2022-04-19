@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .modules import *
-from torchvision.ops import DeformConv2d
 
 
 class FeatureNet(nn.Module):
@@ -32,13 +31,16 @@ class FeatureNet(nn.Module):
 
         self.conv2 = nn.Sequential(
             # ConvBnReLU(16, 32, 5, 2, 2, norm_act=norm_act),
-            ConvBlock(16,32,3,2,2,deformConv[5]),
+            ConvBlock(16, 32, 5, 2, 2, deformConv[5]),
             # ConvBnReLU(32, 32, 3, 1, 1, norm_act=norm_act),
-            ConvBlock(32,32,3,1,1,deformConv[6]),
+            ConvBlock(32, 32, 3, 1, 1, deformConv[6]),
             # ConvBnReLU(32, 32, 3, 1, 1, norm_act=norm_act))
-            DeformConv(32, 32, 3, 1, 1))
+            ConvBlock(32, 32, 3, 1, 1,deformConv[7]))
 
+        # Top layer
         self.toplayer = nn.Conv2d(32, 32, 1)
+
+        # Lateral layers 边缘层
         self.lat1 = nn.Conv2d(16, 32, 1)
         self.lat0 = nn.Conv2d(8, 32, 1)
 
@@ -80,63 +82,6 @@ class FeatureNet(nn.Module):
                  "level_2": feat2}
 
         return feats
-
-
-class DeformConv(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, groups=1):
-        super(DeformConv, self).__init__()
-        self.offset = nn.Conv2d(in_channels=in_channels,
-                                out_channels=2 * groups * kernel_size * kernel_size,
-                                kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, bias=False)
-        self.deformConv = DeformConv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups,
-                                       bias=False)
-
-    def forward(self, x):
-        offset = self.offset(x)
-        x = offset.deformConv(x, offset)
-        return x
-
-
-class DeformConvBnReLU(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, groups=1,
-                 norm_act=InPlaceABN):
-        super(DeformConvBnReLU, self).__init__()
-        self.offset = nn.Conv2d(in_channels=in_channels,
-                                out_channels=2 * groups * kernel_size * kernel_size,
-                                kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, bias=False)
-        self.deformConv = DeformConv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups,
-                                       bias=False)
-        self.bn = norm_act(out_channels)
-
-    def forward(self, x):
-        offset = self.offset(x)
-        x = self.deformConv(x, offset)
-        return self.bn(x)
-
-
-class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, groups=1,
-                 deformableConv=0):
-        '''
-
-        Args:
-            in_channels:
-            out_channels:
-            kernel_size:
-            stride:
-            padding:
-            dilation:
-            groups:
-            deformableConv: 哪一层使用DCN
-        '''
-        super(ConvBlock, self).__init__()
-        if deformableConv:
-            self.convBlock = DeformConvBnReLU(in_channels, out_channels, kernel_size, stride, padding, dilation, groups)
-        else:
-            self.convBlock = ConvBnReLU(in_channels, out_channels, kernel_size, stride, padding)
-
-    def forward(self, x):
-        return self.convBlock(x)
 
 
 class CostRegNet(nn.Module):
