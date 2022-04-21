@@ -4,4 +4,6 @@ python train.py \
    --num_epochs 16 --batch_size 2 \
    --depth_interval 192.0 --n_depths 8 32 48 --interval_ratios 1.0 2.0 4.0 \
    --optimizer adam --lr 1e-3 --lr_scheduler cosine \
-   --exp_name exp
+   --exp_name exp \
+   --num_gpus 2 \
+   --deform_conv 0 0 1 0 0 1 0 1

@@ -123,6 +123,10 @@ class MVSSystem(LightningModule):
             log['train/acc_2mm'] = acc_threshold(depth_pred, depth_gt, mask, 2).mean()
             log['train/acc_4mm'] = acc_threshold(depth_pred, depth_gt, mask, 4).mean()
 
+            for k, v in log.items():
+                if k.startswith('train'):
+                    self.log(k, v)
+
         return {'loss': loss,
                 'progress_bar': {'train_abs_err': abs_err},
                 'log': log
@@ -164,6 +168,12 @@ class MVSSystem(LightningModule):
         mean_acc_2mm = torch.stack([x['val_acc_2mm'] for x in outputs]).sum() / mask_sum
         mean_acc_4mm = torch.stack([x['val_acc_4mm'] for x in outputs]).sum() / mask_sum
 
+        self.log('val/loss', mean_loss, on_epoch=True)
+        self.log('val/abs_err', mean_abs_err, on_epoch=True)
+        self.log('val/acc_1mm', mean_acc_1mm, on_epoch=True)
+        self.log('val/acc_2mm', mean_acc_2mm, on_epoch=True)
+        self.log('val/acc_4mm', mean_acc_4mm, on_epoch=True)
+
         return {'progress_bar': {'val_loss': mean_loss,
                                  'val_abs_err': mean_abs_err},
                 'log': {'val/loss': mean_loss,
@@ -202,6 +212,10 @@ if __name__ == '__main__':
                       num_sanity_val_steps=0 if hparams.num_gpus>1 else 5,
                       benchmark=True,
                       precision=16 if hparams.use_amp else 32,
-                      amp_level='O1')
+                      amp_level='O1',
+                      # testing
+                      # limit_train_batches=0.01,
+                      # limit_val_batches=0.01
+                      )
 
     trainer.fit(system)
